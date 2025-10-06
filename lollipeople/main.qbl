@@ -1,0 +1,12 @@
+@include "lolli.qbl"
+@include "QB/output.qbl"
+
+__poem lolli_check(quibble_pixels_prgba8888 qpix,
+                   quibble_simple_camera qcam){
+
+    quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(0,0,0,1,0.1);
+
+    @SCALL lolliperson_chaos(1000, qcam){
+        @VCALL output_lolli();
+    }
+}

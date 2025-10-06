@@ -1,0 +1,112 @@
+#ifndef LOLLI_QBL
+#define LOLLI_QBL
+
+@include "QB/chaos.qbl"
+
+__verse output_lolli(void){
+    if (_i > 20){
+        histogram_output_prgba8888(_body_pt, qcolor, qcam, qpix);
+        histogram_output_prgba8888(_head_pt, qcolor, qcam, qpix);
+        histogram_output_prgba8888(_right_eye_pt, eye_color, qcam, qpix);
+        histogram_output_prgba8888(_left_eye_pt, eye_color, qcam, qpix);
+    }
+}
+
+__stanza lolliperson_chaos(int num_iterations, quibble_simple_camera cam |
+                           float size = 1;
+                           quibble_point_2D location = qb_point_2D(0,0);
+                           quibble_pcolor_rgba8888 color =
+                               qb_pcolor_rgba8888(0,0,0,1,0.5);
+                           quibble_pcolor_rgba8888 eye_color =
+                               qb_pcolor_rgba8888(1,1,1,1,0.6);
+                           float eye_distance = 0.075*size;){
+
+    quibble_pcg_state qstate = pcg32_init(_idx);
+
+    float y = fpcg32(&qstate)*cam.world_size_y+cam.world_position_y;
+    float x = fpcg32(&qstate)*cam.world_size_x+cam.world_position_x;
+
+    quibble_point_2D _body_pt = qb_point_2D(x, y);
+
+    // regenerating for head point
+    y = fpcg32(&qstate)*cam.world_size_y+cam.world_position_y;
+    x = fpcg32(&qstate)*cam.world_size_x+cam.world_position_x;
+
+    quibble_point_2D _head_pt = qb_point_2D(x, y);
+    quibble_point_2D _right_eye_pt;
+    quibble_point_2D _left_eye_pt;
+
+    quibble_pcolor_rgba8888 _clr = qb_pcolor_rgba8888(0,0,0,0,0);
+
+    quibble_point_2D vertex_1 = qb_point_2D(location.x + 0.05 * size,
+                                            location.y);
+    quibble_point_2D vertex_2 = qb_point_2D(location.x - 0.05 * size,
+                                            location.y);
+    quibble_point_2D vertex_3 = qb_point_2D(location.x + 0.05 * size,
+                                            location.y + size * 0.5);
+    quibble_point_2D vertex_4 = qb_point_2D(location.x - 0.05 * size,
+                                            location.y + size * 0.5);
+
+    location.y -= size * 0.3;
+
+    unsigned short chosen_fx;
+   
+    for (int _i = 0; _i < num_iterations; ++_i){
+        chosen_fx = pcg32(&qstate)%4;
+
+        switch (chosen_fx){
+            case 0:
+                _body_pt = halfway(_body_pt, vertex_1);
+                break;
+            case 1:
+                _body_pt = halfway(_body_pt, vertex_2);
+                break;
+            case 2:
+                _body_pt = halfway(_body_pt, vertex_3);
+                break;
+            case 3:
+                _body_pt = halfway(_body_pt, vertex_4);
+                break;
+            default:
+                break;
+        }
+
+        chosen_fx = pcg32(&qstate)%2;
+
+        switch (chosen_fx){
+            case 0:
+                _head_pt = constant_disk_fx(_head_pt, size*0.25, location, 0);
+                break;
+            case 1:
+                _head_pt = constant_disk_fx(_head_pt, size*0.25, location, 1);
+                break;
+            default:
+                break;
+        }
+
+        _right_eye_pt.x = 0.15*(_head_pt.x - location.x) +
+                          location.x + eye_distance;
+        _right_eye_pt.y = 0.35*(_head_pt.y - location.y) +
+                          location.y;
+
+        _left_eye_pt.x = 0.15*(_head_pt.x - location.x) +
+                         location.x - eye_distance;
+        _left_eye_pt.y = 0.35*(_head_pt.y - location.y) +
+                         location.y;
+/*
+        _right_eye_pt.x = 0.15*(_head_pt.x - location.x) +
+                          location.x + eye_distance;
+        _right_eye_pt.y = 0.25*(_head_pt.x - location.y) + location.y;
+
+        _left_eye_pt.x = 0.15*(_head_pt.x - location.x) +
+                         location.x - eye_distance;
+        _left_eye_pt.y = 0.25*(_head_pt.x - location.y) +
+                         location.y - eye_distance;
+*/
+
+        __split_stanza();
+    }
+
+}
+
+#endif
