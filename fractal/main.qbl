@@ -1,0 +1,368 @@
+@include "QB/output.qbl"
+@include "QB/chaos.qbl"
+
+/*----------------------------------------------------------------------------//
+    AUX
+//----------------------------------------------------------------------------*/
+
+quibble_point_2D rotate_about_origin(quibble_point_2D pt, float theta){
+
+    float v1 = pt.x*cos(theta) - pt.y*sin(theta);
+    float v2 = pt.x*sin(theta) + pt.y*cos(theta);
+
+    return qb_point_2D(v1, v2);
+    
+}
+
+
+quibble_point_2D rotate(quibble_point_2D pt,
+                        float theta,
+                        quibble_point_2D origin){
+    pt.x -= origin.x;
+    pt.y -= origin.y;
+
+    float v1 = pt.x*cos(theta) - pt.y*sin(theta);
+    float v2 = pt.x*sin(theta) + pt.y*cos(theta);
+
+    return qb_point_2D(v1 + origin.x, v2 + origin.y);
+    
+}
+
+__poem bg_shader(quibble_pixels_prgba8888 qps,
+                 quibble_simple_camera qcam, float time){
+    quibble_point_2D pt = qb_find_point_location(_idx, qcam);
+    float r = sqrt(pt.x*pt.x + pt.y*pt.y);
+    float b = (1-0.75*r);
+    if (b < 0){
+        b = 0;
+    }
+
+    quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(0,0,b,1,0.01);
+    histogram_overwrite_prgba8888(pt, qcolor, qcam, qps);
+}
+/*----------------------------------------------------------------------------//
+    COMET
+//----------------------------------------------------------------------------*/
+
+quibble_pcolor_rgba8888 comet_fire(quibble_point_2D pt, float planet_radius){
+    float r = sqrt(pt.x*pt.x + pt.y*pt.y);
+    float red = 1;
+    float green = 0.25 + 0.75*(r / planet_radius);
+    float blue = r / planet_radius;
+    float alpha = 0.5+0.5*(1-(r / planet_radius));
+
+    return qb_pcolor_rgba8888(red, green, blue, alpha, 0.5);
+}
+
+quibble_pcolor_rgba8888 comet_hole(quibble_point_2D pt,
+                                   quibble_pcolor_rgba8888 clr,
+                                   float comet_distance,
+                                   float comet_size){
+    pt.x -= comet_distance;
+    float r = sqrt(pt.x*pt.x + pt.y*pt.y);
+
+    if (r < comet_size * 0.4){
+        return qb_pcolor_rgba8888(0,0,0,1,clr.priority);
+    }
+    else {
+        return clr;
+    }
+    
+}
+
+void create_comet(quibble_point_2D pt, float planet_radius,
+                  __global quibble_pcolor_rgba8888 *qpix,
+                  quibble_simple_camera qcam,
+                  float time){
+    float primitive_radius = 0.3;
+    float comet_distance = 1;
+    float comet_size = 0.04;
+    float tail_size = 7.5;
+
+    quibble_pcolor_rgba8888 comet_color = comet_fire(pt, planet_radius);
+
+    pt.x *= comet_size;
+    pt.y *= comet_size;
+
+    if (pt.y > 0){
+        pt.x *= (1-(pt.y/comet_size));
+    }
+
+    pt.x += comet_distance;
+
+    quibble_point_2D tmp;
+
+    if (pt.y > 0){
+        float tail_angle = pt.y * tail_size;
+        tmp.x = pt.x*cos(tail_angle) - pt.y*sin(tail_angle);
+        tmp.y = pt.x*sin(tail_angle) + pt.y*cos(tail_angle);
+    }
+
+    pt.x = tmp.x;
+    pt.y = tmp.y;
+
+    comet_color = comet_hole(pt, comet_color, comet_distance, comet_size);
+
+    pt = rotate_about_origin(pt, -2*M_PI*time);
+
+    pt.x *= 1.4;
+
+    if (time > 3.16167 && time < 4.16167){
+        float r = sqrt(pt.x*pt.x + pt.y*pt.y);
+        float theta = atan2(pt.y, pt.x);
+        float t = 2*(time - 3.16167);
+        float comet_wiggle_amplitude = 0.03 * t;
+
+        if (pt.y < 0){
+            theta += 2*M_PI;
+        }
+
+        r += comet_wiggle_amplitude*sin(10*theta);
+
+        pt.y = r*sin(theta);
+        pt.x = r*cos(theta);
+
+    }
+
+    histogram_output_prgba8888(pt, comet_color, qcam, qpix);
+}
+
+/*----------------------------------------------------------------------------//
+    RINGS
+//----------------------------------------------------------------------------*/
+
+quibble_pcolor_rgba8888 color_disk(quibble_point_2D pt, float max_radius){
+    int num_bands = 6;
+    float r = sqrt(pt.x*pt.x + pt.y*pt.y);
+    int current_band = floor(6 * (r / max_radius));
+
+    float alpha = fmod((num_bands * r / max_radius), 1);
+    float red = 0.25;
+    float green = 0.25;
+    float blue = 0.25;
+
+    if (current_band == 0){
+        red = 1;
+    }
+    else if (current_band == 1){
+        red = 1;
+        green = 1;
+    }
+    else if (current_band == 2){
+        green = 1;
+    }
+    else if (current_band == 3){
+        green = 1;
+        blue = 1;
+    }
+    else if (current_band == 4){
+        blue = 1;
+    }
+    else if (current_band == 5){
+        blue = 1;
+        red = 1;
+    }
+
+    return qb_pcolor_rgba8888(red, green, blue, alpha, 0.5);
+}
+
+__verse create_rings(quibble_point_2D ring_pt |
+                     float radius = 0.850;
+                     float thickness = 0.30;
+                     float project_angle = M_PI*0.425;
+                     float project_distance = -2;){
+
+    float theta = atan2(ring_pt.y, ring_pt.x);;
+    if (ring_pt.y < 0){
+        theta += 2*M_PI;
+    }
+
+    quibble_pcolor_rgba8888 ring_color = color_disk(ring_pt, planet_radius);
+
+    float inner_radius = radius - 0.5*thickness;
+
+    ring_pt.x =
+        ring_pt.x * (thickness / planet_radius) + inner_radius * cos(theta);
+    ring_pt.y =
+        ring_pt.y * (thickness / planet_radius) + inner_radius * sin(theta);
+
+    float new_project_angle =
+        (project_distance / (project_distance + ring_pt.y*sin(project_angle)));
+
+    quibble_point_2D ring_output_pt =
+        qb_point_2D(new_project_angle * ring_pt.x,
+                    new_project_angle * ring_pt.y * cos(project_angle));
+
+    ring_color.priority = qb_color_clamp(0.52, 0, 1);
+    if (ring_output_pt.y < 0){
+        ring_color.priority -= 25;
+    }
+
+    ring_output_pt = rotate_about_origin(ring_output_pt,
+                                         -0.1*M_PI+0.1*sin(0.5*time*2*M_PI));
+
+
+    if (time >= 3.66 && time < 4.66){
+        float t = time - 3.66;
+        float ring_scale = 1 + 0.05*sin(3*M_PI*t*t)/(t+0.01);
+
+        ring_output_pt.x *= ring_scale;
+        ring_output_pt.y *= ring_scale;
+    }
+
+    histogram_output_prgba8888(ring_output_pt,
+                               ring_color,
+                               cam, qpix);
+}
+                     
+
+/*----------------------------------------------------------------------------//
+    STARS
+//----------------------------------------------------------------------------*/
+
+__verse star_position(quibble_point_2D star_pt |
+                      int num_stars = 5000; float base_size = 0.0025;){
+
+    int star_idx = (int)floor(fpcg32(&qstate)*5000);
+    quibble_pcg_state qstate2 = pcg32_init(star_idx);
+
+    float star_x = cam.world_size_x*fpcg32(&qstate2) - 0.5*cam.world_size_x;
+    float star_y = cam.world_size_y*fpcg32(&qstate2) - 0.5*cam.world_size_y;
+
+    float star_scale_factor = base_size*(1 + 0.3*fpcg32(&qstate2));
+
+    star_pt.x = star_scale_factor * star_pt.x + star_x;
+    star_pt.y = star_scale_factor * star_pt.y + star_y;
+
+
+    if (time >= 2.33 && time < 3.33){
+        float t = time - 2.33;
+        float star_scale = 1 + 0.02*sin(3*M_PI*t*t)/(t+0.01);
+
+        star_pt.x *= star_scale;
+        star_pt.y *= star_scale;
+    }
+
+    histogram_output_prgba8888(star_pt, qb_pcolor_rgba8888(1,1,1,1,0.25), cam, qpix);
+}
+
+/*----------------------------------------------------------------------------//
+    PLANET
+//----------------------------------------------------------------------------*/
+
+bool is_even(int val){
+    if (val % 2 == 0){
+        return true;
+    } else {
+        return false;
+    }
+}
+
+quibble_point_2D planet_swirl(quibble_point_2D pt, float planet_radius,
+                              float total_rotations, float global_rotation){
+    float r = sqrt(pt.x*pt.x + pt.y*pt.y);
+    float theta = (planet_radius - r)*(total_rotations*2*M_PI);
+    if (pt.y < 0){
+        theta += 2*M_PI;
+    }
+
+    float v1 = pt.x*cos(theta) + pt.y*sin(theta);
+    float v2 = pt.x*sin(theta) - pt.y*cos(theta);
+
+    pt.y = v1;
+    pt.x = v2;
+
+    v1 = pt.x*cos(global_rotation) + pt.y*sin(global_rotation);
+    v2 = pt.x*sin(global_rotation) - pt.y*cos(global_rotation);
+
+    return qb_point_2D(v1, v2);
+
+}
+
+quibble_pcolor_rgba8888 base_planet_color(quibble_point_2D pt,
+                                          int num_divisions){
+    float theta = atan2(pt.y,pt.x);
+    if (pt.y < 0){
+        theta += 2*M_PI;
+    }
+    bool red = is_even(floor(num_divisions * (theta/(2*M_PI))));
+    if (red){
+        return qb_pcolor_rgba8888(1,0,0,1,0.49);
+    } else{
+        return qb_pcolor_rgba8888(1,1,1,1,0.5);
+    }
+}
+
+quibble_pcolor_rgba8888 planet_shade(quibble_point_2D pt,
+                                     quibble_pcolor_rgba8888 clr,
+                                     float glow_offset_x,
+                                     float glow_offset_y,
+                                     float gradient_radius){
+    float r = sqrt((pt.x-glow_offset_x)*(pt.x-glow_offset_x) +
+                    (pt.y-glow_offset_y)*(pt.y-glow_offset_y));
+
+    float ratio = (1 - (r/gradient_radius));
+    if (ratio < 0){
+        ratio = 0;
+    }
+
+    r = qb_as_float(clr.red) * ratio;
+    float g = qb_as_float(clr.green) * ratio;
+    float b = qb_as_float(clr.blue) * ratio;
+
+    return qb_pcolor_rgba8888(r, g, b, 1, qb_as_float(clr.priority));
+}
+
+/*----------------------------------------------------------------------------//
+    SCENE
+//----------------------------------------------------------------------------*/
+
+__poem scene_1_bulk(quibble_pixels_prgba8888 qpix,
+                    quibble_simple_camera qcam, float time){
+
+    quibble_point_2D location = qb_point_2D(0,0);
+    int num_ignore = 10;
+    quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(1,1,1,1,1);
+
+    float global_rotation = 0.3*M_PI*time;
+
+    float planet_radius = 0.6;
+
+    @SCALL circle_chaos(5000, qcam, qcolor |
+                        location = location; radius = planet_radius;){
+        if (_i > num_ignore){
+            _clr = base_planet_color(_pt, 18);
+            quibble_point_2D output_point =
+                planet_swirl(_pt, planet_radius, 1, global_rotation);
+            _clr = planet_shade(output_point,
+                                _clr,
+                                -0.1,
+                                -0.1,
+                                planet_radius*1.1);
+            histogram_output_prgba8888(output_point, _clr, cam, qpix);
+            @VCALL star_position(_pt);
+            create_comet(_pt, planet_radius, qpix, cam, time);
+        }
+    }
+}
+
+__poem scene_1_rings(quibble_pixels_prgba8888 qpix,
+                     quibble_simple_camera qcam, float time){
+    quibble_point_2D location = qb_point_2D(0,0);
+
+    int num_ignore = 10;
+    quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(1,1,1,1,1);
+
+    float global_rotation = 0.3*M_PI*time;
+
+    float planet_radius = 0.6;
+
+    @SCALL circle_chaos(5000, qcam, qcolor |
+                        location = location; radius = planet_radius;
+                        naive_disk = true;){
+        if (_i > num_ignore){
+            @VCALL create_rings(_pt);
+        }
+    }
+}
+
