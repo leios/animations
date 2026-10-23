@@ -1,0 +1,19 @@
+@include "QB/output.qbl"
+
+__poem simple_shader(quibble_pixels_rgba8888 qps,
+                     quibble_simple_camera qcam){
+    quibble_point_2D pt = qb_find_point_location(_idx, qcam);
+    quibble_color_rgba8888 qcolor = qb_color_rgba8888(0,0,0,1);
+
+    qcolor.red = qb_color_clamp(
+        (pt.x - qcam.world_position_x) / qcam.world_size_x,
+        0, 1
+    );
+
+    qcolor.blue = qb_color_clamp(
+        (pt.y - qcam.world_position_y) / qcam.world_size_y,
+        0, 1
+    );
+
+    histogram_output_rgba8888(pt, qcolor, qcam, qps);
+}
