@@ -1,0 +1,55 @@
+@include "QB/chaos.qbl"
+@include "QB/output.qbl"
+
+__poem bg_layer(quibble_pixels_prgba8888 qpix,
+                quibble_simple_camera qcam){
+
+    quibble_point_2D pt = qb_find_point_location(_idx, qcam);
+
+    quibble_point_2D relative_pt = pt;
+    relative_pt.x -= qcam.world_size_x*0.5;
+    relative_pt.y -= qcam.world_size_y*0.5;
+
+    float r = sqrt((relative_pt.x-qcam.world_position_x) *
+                   (relative_pt.x-qcam.world_position_x) +
+                   (relative_pt.y-qcam.world_position_y) *
+                   (relative_pt.y-qcam.world_position_y));
+
+    quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(0,0,0.7/(r*r+1),1,0.05);
+
+    histogram_overwrite_prgba8888(pt, qcolor, qcam, qpix);
+
+    qcolor = qb_pcolor_rgba8888(1,1,1,1,0.5);
+
+}
+
+__verse supernova_smear(quibble_point_2D pt){
+
+    quibble_point_2D out_pt = pt;
+
+    // Is this better than using 1/pt.y or trig functions? no clue.
+    // 1 is offset and 3*trig fx is just scaling with time
+    // (pt.y - 1)^N will give you a spike, but only if you do (pt.y + 1)^N
+    //     in the other axis
+    out_pt.x += (1+3*fabs(sin(time*2*M_PI)))*pt.x*pow((pt.y-sign(pt.y)*1), 2);
+    out_pt.y += (1+3*fabs(cos(time*2*M_PI)))*pt.y*pow((pt.x-sign(pt.x)*1), 2);
+
+    out_pt.x *= 0.01;
+    out_pt.y *= 0.01;
+
+    histogram_output_prgba8888(out_pt, qcolor, qcam, qpix);
+}
+
+__poem supernova(quibble_pixels_prgba8888 qpix,
+                 quibble_simple_camera qcam, float time){
+
+    quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(1,1,1,1,1);
+
+
+    // Keeping radius at 1 so other transformations make sense. Scaling later.
+    @SCALL circle_chaos(200, qcam, qcolor |
+                        radius = 1;){
+        @VCALL supernova_smear(_pt);
+    }
+
+}
