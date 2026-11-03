@@ -1,10 +1,16 @@
 @include "QB/chaos.qbl"
 @include "QB/output.qbl"
+@include "girl.qbl"
 
 __poem bg_layer(quibble_pixels_prgba8888 qpix,
                 quibble_simple_camera qcam){
 
     quibble_point_2D pt = qb_find_point_location(_idx, qcam);
+
+    quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(1,1,1,1,0.001);
+    histogram_overwrite_prgba8888(pt, qcolor, qcam, qpix);
+
+/*
 
     quibble_point_2D relative_pt = pt;
     relative_pt.x -= qcam.world_size_x*0.5;
@@ -18,8 +24,8 @@ __poem bg_layer(quibble_pixels_prgba8888 qpix,
     quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(0,0,0.7/(r*r+1),1,0.05);
 
     histogram_overwrite_prgba8888(pt, qcolor, qcam, qpix);
+*/
 
-    qcolor = qb_pcolor_rgba8888(1,1,1,1,0.5);
 
 }
 

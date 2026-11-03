@@ -74,17 +74,23 @@ int main(int argc, char **argv){
                 "quibble_pixels_prgba8888 qpix", qpix,
                 "quibble_simple_camera qcam", &qcam);
 
+/*
     qb_set_args(&qp, "supernova", 2,
+                "quibble_pixels_prgba8888 qpix", qpix,
+                "quibble_simple_camera qcam", &qcam);
+*/
+    qb_set_args(&qp, "eye", 2,
                 "quibble_pixels_prgba8888 qpix", qpix,
                 "quibble_simple_camera qcam", &qcam);
 
 
     while (curr_time < final_time){
         char filename[15] = {0};
-        qb_set_arg(&qp, "supernova", "float time", &curr_time);
+        //qb_set_arg(&qp, "supernova", "float time", &curr_time);
 
         qb_run(qp, "bg_layer", width*height, 256);
-        qb_run(qp, "supernova", 1024, 256);
+        //qb_run(qp, "supernova", 1024, 256);
+        qb_run(qp, "eye", 1024, 256);
 
         qb_pixels_device_to_host(qpix);
 
