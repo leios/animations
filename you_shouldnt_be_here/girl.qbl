@@ -1,7 +1,8 @@
 @include "QB/chaos.qbl"
 
 __verse reflection(quibble_point_2D pt |
-                   float eye_size = 0.5; int num_ignore = 20;){
+                   float eye_size = 0.5; int num_ignore = 20;
+                   float openness = 1;){
 
     quibble_pcolor_rgba8888 reflection_color = qb_pcolor_rgba8888(1,1,1,1,0.6);
 
@@ -37,15 +38,16 @@ __verse iris(quibble_point_2D pt |
              float pupil_size = 0.3;
              float color_change = 0.1;
              float eye_size = 0.5;
-             int num_ignore = 20;){
+             int num_ignore = 20;
+             float openness = 1;){
 
     float iris_priority = 0.5;
+
     quibble_pcolor_rgba8888 iris_color =
         qb_pcolor_rgba8888(0,0,0,0,iris_priority);
 
     float r = sqrt(pt.x*pt.x + pt.y*pt.y);
     float theta = atan2(pt.y,pt.x);
-
 
     // This modifies the color change line (where the two colors mix
     // we are using a combo of different cos values to make a somewhat rng 
@@ -76,8 +78,8 @@ __verse iris(quibble_point_2D pt |
     }
 
     // resize eye. remove later
-    pt.x *= 0.5;
-    pt.y *= 0.5;
+    pt.x *= eye_size;
+    pt.y *= eye_size;
 
     if (_i > num_ignore){
         histogram_output_prgba8888(pt, iris_color, qcam, qpix);
@@ -91,11 +93,12 @@ __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
 
     float eye_radius = 0.5;
 
+    quibble_point_2D cat_eye_pt = pt;
 
     // eye lashes
     if (num_lashes > 0){
         // num_lashes - 0.5 so it ends on a cat-eye
-        float lash_length = 2.0/(num_lashes-0.5);
+        float lash_length = 2.0/(num_lashes);
 
         // centering eyelash
         pt.x += 1;
@@ -114,13 +117,25 @@ __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
         m -= 0.5;
 
         // 10 is arbitrary
-        pt.y *= 1 + 5*openness*m*m;
+        pt.y *= 1 + 10*openness*m*m;
 
         // eye shaping
-        pt.y *= 0.1 + 0.5*(pt.x-0.5);
+        pt.y += 0.05;
+        pt.y *= 1-pow((float)((pt.x-0.5)*lash_length)-1.0f,2.0f);
+        pt.y -= 0.05;
+        //pt.y *= 0.1 + 0.2*pt.x;
+
+        /*
+        if (pt.x >  (num_lashes - 1)){
+            float new_x = pt.x - num_lashes + 1;
+            pt.y *= (1 + new_x);
+            pt.y += 0.05*new_x * new_x*new_x*new_x*openness;
+            //pt.y *= 1 - new_x;
+        }
+        */
 
         // shifting lashes a bit to the right as the go up for effect
-        pt.x += 2*pt.y*pt.y;
+        pt.x -= 3*(pt.y+0.05)*(pt.y+0.05)*(pt.y+0.05);
 
         // returning to original position
         pt.x -= 0.5;
@@ -154,17 +169,44 @@ __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
     }
 }
 
+__verse eye_shadow(quibble_point_2D pt, quibble_pcolor_rgba8888 clr |
+                   float openness = 1; float eye_size = 0.5;
+                   int num_ignore = 20;){
+
+    // for now, flipping all points up, but might also use this to block out eye for the under lashes too
+    pt.y = -fabs(pt.y);
+    pt.y /= (1 + openness);
+
+    // creating an upper semi-circle under the lashes
+    pt.y -= eye_size*openness;
+    pt.x = pt.x+0.5*eye_size;
+
+    float r = sqrt(pt.x*pt.x + pt.y*pt.y);
+    //float theta = atan2(pt.y,pt.x);
+
+    pt.y += openness * 0.2*r;
+
+    if (_i > num_ignore){
+        histogram_output_prgba8888(pt, clr, qcam, qpix);
+    }
+}
+
 __poem eye(quibble_pixels_prgba8888 qpix, quibble_simple_camera qcam){
     quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(1,0,1,1,0.1);
     quibble_pcolor_rgba8888 eyelash_color = qb_pcolor_rgba8888(0,0,0,1,0.8);
+    quibble_pcolor_rgba8888 eye_shadow_color =
+        qb_pcolor_rgba8888(0.9,0.75,1,1,0.7);
+
+    float openness = 0;
 
     @SCALL circle_chaos(5000, qcam, qcolor | radius = 1;){
         @VCALL iris(_pt);
         @VCALL reflection(_pt);
+        @VCALL eye_shadow(_pt, eye_shadow_color | float openness = openness;);
     }
 
     @SCALL rectangle_chaos(1000, qcam, qcolor | float scale_y = 0.05;){
-        @VCALL eyelash(_pt, eyelash_color);
+        @VCALL eyelash(_pt, eyelash_color | float openness = openness;);
     }
 
 
