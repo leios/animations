@@ -2,9 +2,8 @@
 
  Purpose: To draw a decent render of a girl
 
-   Notes: 1. Define the eyes extents so if the iris moves beyond this location
-             it will disappear
-          2. eyebrows
+   Notes: 1. make sure other functions work on eye size instead of iris size
+          2. better define eye shape
 
 //----------------------------------------------------------------------------*/
 @include "QB/chaos.qbl"
@@ -13,50 +12,8 @@
     EYES
 //----------------------------------------------------------------------------*/
 
-bool in_eye_extents(quibble_point_2D pt,
-                    bool left_eye,
-                    float eye_size,
-                    float eye_separation){
-    
-    // move to center and do transformations for eye shape
-    pt.x - eye_separation*0.5;
-    pt.y *= 2 + pt.x;
-
-    // right eye
-    float radius = sqrt((pt.x-eye_separation*0.5)*(pt.x-eye_separation*0.5)
-                         +pt.y*pt.y);
-
-    if (radius < 2*eye_size){
-        return true;
-    }
-
-    pt.x *= -1;
-
-    radius = sqrt((pt.x-eye_separation*0.5)*(pt.x-eye_separation*0.5)
-                   +pt.y*pt.y);
-
-
-    // left eye
-/*
-    float radius = 0;
-    if (left_eye){
-        radius = sqrt((pt.x-eye_separation*0.5)*(pt.x-eye_separation*0.5)
-                       +pt.y*pt.y);
-    } else {
-        radius = sqrt((pt.x+eye_separation*0.5)*(pt.x+eye_separation*0.5)
-                       +pt.y*pt.y);
-    }
-*/
-
-    if (radius < 2*eye_size){
-        return true;
-    } else {
-        return false;
-    }
-}
-
 __verse reflection(quibble_point_2D pt |
-                   float eye_size = 0.25; int num_ignore = 20;
+                   float iris_size = 0.25; int num_ignore = 20;
                    float openness = 1; float separation = 0.25;){
 
     quibble_pcolor_rgba8888 reflection_color = qb_pcolor_rgba8888(1,1,1,1,0.6);
@@ -80,8 +37,8 @@ __verse reflection(quibble_point_2D pt |
     pt.x = r*cos(theta);
     pt.y = r*sin(theta);
 
-    pt.x *= eye_size;
-    pt.y *= eye_size;
+    pt.x *= iris_size;
+    pt.y *= iris_size;
 
     pt.x += separation*0.5;
 
@@ -93,17 +50,17 @@ __verse reflection(quibble_point_2D pt |
 
 }
 
-quibble_point_2D iris_jitter(quibble_point_2D pt, float time, float eye_size){
-    pt.x += 0.1*eye_size*sin(time*10*M_PI);
-    pt.y += 0.1*eye_size*cos(time*5*M_PI);
+quibble_point_2D iris_jitter(quibble_point_2D pt, float time, float iris_size){
+    pt.x += 0.1*iris_size*sin(time*10*M_PI);
+    pt.y += 0.1*iris_size*cos(time*5*M_PI);
 /*
     if (time < 0.15){;
-        pt.x += 0.25*eye_size*time/0.15;
+        pt.x += 0.25*iris_size*time/0.15;
     } else if (time >= 0.15 && time < 0.3){
-        pt.x += 0.25 - 0.25*eye_size*(time-0.15)/0.15;
-        pt.y += 0.25*eye_size*(time-0.15)/0.15;
+        pt.x += 0.25 - 0.25*iris_size*(time-0.15)/0.15;
+        pt.y += 0.25*iris_size*(time-0.15)/0.15;
     } else if (time >= 0.3 && time < 0.6){
-        pt.y += 0.25 - 0.25*eye_size*(time-0.15)/0.15;
+        pt.y += 0.25 - 0.25*iris_size*(time-0.15)/0.15;
     }
 */
     return pt;
@@ -120,71 +77,129 @@ float find_pupil_size(float base_size, float time){
     return base_size;
 }
 
-__verse iris(quibble_point_2D pt, float time | 
-             float color_change = 0.1;
-             float eye_size = 0.25;
-             int num_ignore = 20;
-             float openness = 1;
-             float separation = 0.5;){
+quibble_pcolor_rgba8888 color_iris(quibble_point_2D pt,
+                                   float iris_size,
+                                   float color_change,
+                                   float time){
+
+    float eye_color_priority = 0.5;
+    quibble_pcolor_rgba8888 eye_color =
+        qb_pcolor_rgba8888(1,1,1,1,eye_color_priority);
+
+    quibble_point_2D iris_position = iris_jitter(qb_point_2D(0,0),
+                                                 time, iris_size);
+
+    quibble_point_2D relative_pt = qb_point_2D(pt.x - iris_position.x,
+                                               pt.y - iris_position.y);
+
+    float r = sqrt(relative_pt.x*relative_pt.x + relative_pt.y*relative_pt.y);
+                   
 
     float pupil_size = find_pupil_size(0.3, time);
+    pupil_size *= iris_size;
 
-    float iris_priority = 0.5;
-
-    quibble_pcolor_rgba8888 iris_color =
-        qb_pcolor_rgba8888(0,0,0,0,iris_priority);
-
-    float r = sqrt(pt.x*pt.x + pt.y*pt.y);
-    float theta = atan2(pt.y,pt.x);
+    float theta = atan2(relative_pt.y, relative_pt.x);
 
     // This modifies the color change line (where the two colors mix
-    // we are using a combo of different cos values to make a somewhat rng 
+    // we are using a combo of different cos values to make a somewhat rng
     //     line pattern
-    color_change = pupil_size + (1-pupil_size)*color_change;
+    color_change = pupil_size + (iris_size-pupil_size)*color_change;
     color_change = (color_change - pupil_size)*(1.25-0.25*cos(10*theta)*cos(20*theta))+pupil_size;
 
     // initial coloring
     if (r <= pupil_size){
-        iris_color = qb_pcolor_rgba8888(0,0,0,1,
-                                        iris_priority);
+        eye_color = qb_pcolor_rgba8888(0,0,0,1,eye_color_priority);
     }
     else if (r <= color_change){
         float theta_shading = (1 - 0.05*cos(13*theta)*cos(27*theta));
-        iris_color = qb_pcolor_rgba8888(1*theta_shading,
-                                        0.75*theta_shading,
-                                        0*theta_shading,
-                                        1,
-                                        iris_priority);
+        eye_color = qb_pcolor_rgba8888(1*theta_shading,
+                                       0.75*theta_shading,
+                                       0*theta_shading,
+                                       1,
+                                       eye_color_priority);
     }
-    else{
+    else if (r <= iris_size){
         float theta_shading = (1 - 0.1*cos(20*theta)*cos(10*theta));
-        iris_color = qb_pcolor_rgba8888((1-r)*theta_shading,
-                                        (1-r)*theta_shading,
-                                        (0.5 + 0.5*(1-r))*theta_shading,
-                                        1,
-                                        iris_priority);
+        eye_color = qb_pcolor_rgba8888((iris_size-r)*theta_shading/iris_size,
+                                       (iris_size-r)*theta_shading/iris_size,
+                                       (0.25 + 0.75*(iris_size-r))
+                                                   *theta_shading/iris_size,
+                                       1,
+                                       eye_color_priority);
     }
 
-    // resize eye. remove later
-    pt.x *= eye_size;
-    pt.y *= eye_size;
+    return eye_color;
 
+}
+
+__verse eyeball(quibble_point_2D pt, float time | 
+                float color_change = 0.1;
+                float eye_size = 0.2;
+                int num_ignore = 20;
+                float openness = 1;
+                float separation = 0.5;){
+
+    float iris_size = 0.5;
+
+    quibble_point_2D right_eye_pt = pt;
+    quibble_point_2D left_eye_pt = pt;
+
+    // add shaping here
+
+    right_eye_pt.y *= 1 + 0.2*right_eye_pt.x;
+    right_eye_pt.y -= 0.2*right_eye_pt.x;
+    right_eye_pt.y *= 0.75;
+
+    left_eye_pt.y = right_eye_pt.y;
+    left_eye_pt.x *= -1;
+
+
+    // separating left and right eye colors because the shape is inverted
+    quibble_pcolor_rgba8888 right_eye_color = color_iris(right_eye_pt,
+                                                         iris_size,
+                                                         color_change,
+                                                         time);
+
+    quibble_pcolor_rgba8888 left_eye_color = color_iris(left_eye_pt,
+                                                        iris_size,
+                                                        color_change,
+                                                        time);
+
+     // resizing and spacing
+     right_eye_pt.x *= eye_size;
+     right_eye_pt.y *= eye_size;
+
+     right_eye_pt.x += separation*0.5;
+
+     left_eye_pt.x *= eye_size;
+     left_eye_pt.y *= eye_size;
+
+     left_eye_pt.x -= separation*0.5;
+
+    if (_i > num_ignore){
+        histogram_output_prgba8888(right_eye_pt, right_eye_color, qcam, qpix);
+        histogram_output_prgba8888(left_eye_pt, left_eye_color, qcam, qpix);
+    }
+
+
+/*
     pt.x += separation*0.5;
 
     if (_i > num_ignore){
-        histogram_output_prgba8888(iris_jitter(pt, time, eye_size),
-                                   iris_color, qcam, qpix);
+        histogram_output_prgba8888(iris_jitter(pt, time, iris_size),
+                                   eye_color, qcam, qpix);
         pt.x *= -1;
-        histogram_output_prgba8888(iris_jitter(pt, time, eye_size),
-                                   iris_color, qcam, qpix);
+        histogram_output_prgba8888(iris_jitter(pt, time, iris_size),
+                                   eye_color, qcam, qpix);
     }
+*/
 }
 
 // Much of this verse relies on the rectangle being centered about the origin
 //     from -1 -> 1
 __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
                 int num_ignore = 20; float openness = 1; int num_lashes = 5;
-                float eye_size = 0.5; float separation = 0.5;){
+                float iris_size = 0.5; float separation = 0.5;){
 
     quibble_point_2D cat_eye_pt = pt;
 
@@ -251,13 +266,13 @@ __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
 
     pt.y += openness * 0.2*r;
 
-    pt.x *= eye_size*2;
-    pt.y *= eye_size*2;
+    pt.x *= iris_size*2;
+    pt.y *= iris_size*2;
 
     pt.x += separation*0.5;
 
 /*
-    float curve_pt = eye_size + 0.25;
+    float curve_pt = iris_size + 0.25;
     if (pt.x > curve_pt){
         pt.y += 0.5*(pt.x-curve_pt)*r*r;
     }
@@ -271,7 +286,7 @@ __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
 }
 
 __verse eye_shadow(quibble_point_2D pt, quibble_pcolor_rgba8888 clr |
-                   float openness = 1; float eye_size = 0.5;
+                   float openness = 1; float iris_size = 0.5;
                    int num_ignore = 20; float separation = 0.5;){
 
     // for now, flipping all points up, but might also use this to block out eye for the under lashes too
@@ -288,8 +303,8 @@ __verse eye_shadow(quibble_point_2D pt, quibble_pcolor_rgba8888 clr |
 
     pt.y += openness * 0.2*r;
 
-    pt.y *= eye_size*2;
-    pt.x *= eye_size*2;
+    pt.y *= iris_size*2;
+    pt.x *= iris_size*2;
 
     pt.x += 0.5*separation;
 
@@ -317,7 +332,7 @@ quibble_point_2D eyebrow_shaping(quibble_point_2D pt, float time){
 
 __verse eyebrow(quibble_point_2D pt, quibble_pcolor_rgba8888 clr,
                 float time | 
-                float eye_size = 0.25; float separation = 0.5;
+                float iris_size = 0.25; float separation = 0.5;
                 int num_ignore = 20;){
 
     pt.y *= (1-(pt.x*pt.x));
@@ -332,12 +347,12 @@ __verse eyebrow(quibble_point_2D pt, quibble_pcolor_rgba8888 clr,
     pt.x -= 0.5;
 
     // resizing
-    pt.x *= eye_size*2;
-    pt.y *= eye_size*2;
+    pt.x *= iris_size*2;
+    pt.y *= iris_size*2;
 
     // separates and raises brow
     pt.x += 0.5*separation;
-    pt.y -= eye_size * 3;
+    pt.y -= iris_size * 3;
 
     if (_i > num_ignore){
         histogram_output_prgba8888(pt, clr, qcam, qpix);
@@ -351,24 +366,12 @@ __verse eyebrow(quibble_point_2D pt, quibble_pcolor_rgba8888 clr,
     FACE
 //----------------------------------------------------------------------------*/
 
-quibble_pcolor_rgba8888 base_face_color(){
+quibble_pcolor_rgba8888 face_color(){
     return qb_pcolor_rgba8888(0.95, 0.75, 0.85, 1, 0.3);
-}
-quibble_pcolor_rgba8888 face_color(quibble_point_2D pt,
-                                   float eye_size,
-                                   float eye_separation){
-
-    
-    // left eye
-    if (in_eye_extents(pt, true, eye_size, eye_separation) || 
-        in_eye_extents(pt, false, eye_size, eye_separation)){
-        return qb_pcolor_rgba8888(1,1,1, 1, 0.3);
-    }
-    return base_face_color();
 }
 
 __verse head(quibble_point_2D pt | int num_ignore = 20;
-             float eye_size = 0.25; float eye_separation = 0.5;){
+             float iris_size = 0.25; float eye_separation = 0.5;){
 
     pt.x *= 0.65 - 0.1*pt.y;
     if (pt.y < 0){
@@ -379,8 +382,7 @@ __verse head(quibble_point_2D pt | int num_ignore = 20;
     }
 
     if (_i > num_ignore){
-        histogram_output_prgba8888(pt, face_color(pt, eye_size, eye_separation),
-                                   qcam, qpix);
+        histogram_output_prgba8888(pt, face_color(), qcam, qpix);
     }
 }
 
@@ -395,12 +397,12 @@ __poem girl(quibble_pixels_prgba8888 qpix,
     //------------------------------------------------------------------------*/
 
     // variables for defining face color and eye bg
-    float eye_size = 0.1;
-    float eye_separation = 0.5;
+    float iris_size = 0.1;
+    float eye_separation = 0.55;
 
     @SCALL circle_chaos(1000, qcam, qcolor | radius = 1;){
         @VCALL head(_pt |
-                    float eye_size = eye_size;
+                    float iris_size = iris_size;
                     float eye_separation = eye_separation;);
     }
 
@@ -409,7 +411,7 @@ __poem girl(quibble_pixels_prgba8888 qpix,
     //------------------------------------------------------------------------*/
     quibble_pcolor_rgba8888 eyelash_color = qb_pcolor_rgba8888(0,0,0,1,0.8);
 
-    quibble_pcolor_rgba8888 eye_shadow_color = base_face_color();
+    quibble_pcolor_rgba8888 eye_shadow_color = face_color();
     eye_shadow_color.priority = qb_color_clamp(0.7, 0, 1);
     //quibble_pcolor_rgba8888 eye_shadow_color =
     //    qb_pcolor_rgba8888(1,0.75,1,1,0.7);
@@ -431,24 +433,24 @@ __poem girl(quibble_pixels_prgba8888 qpix,
     }
 
 
-    @SCALL circle_chaos(1000, qcam, qcolor | radius = 1;){
-        @VCALL iris(_pt, time | float eye_size = eye_size;
-                    float separation = eye_separation;);
-        @VCALL reflection(_pt | float eye_size = eye_size;
+    @SCALL circle_chaos(2000, qcam, qcolor | radius = 1;){
+        @VCALL eyeball(_pt, time |
+                       float separation = eye_separation;);
+        @VCALL reflection(_pt | float iris_size = iris_size;
                                 float separation = eye_separation;);
         @VCALL eye_shadow(_pt, eye_shadow_color |
                           float openness = openness;
-                          float eye_size = eye_size;
+                          float iris_size = iris_size;
                           float separation = eye_separation;);
     }
 
     @SCALL rectangle_chaos(100, qcam, qcolor | float scale_y = 0.05;){
         @VCALL eyelash(_pt, eyelash_color |
                        float openness = openness;
-                       float eye_size = eye_size;
+                       float iris_size = iris_size;
                        float separation = eye_separation;);
         @VCALL eyebrow(_pt, eyebrow_color, time |
-                       float eye_size = eye_size;
+                       float iris_size = iris_size;
                        float separation = eye_separation;);
     }
 
