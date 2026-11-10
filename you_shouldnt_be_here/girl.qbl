@@ -9,6 +9,52 @@
 //----------------------------------------------------------------------------*/
 @include "QB/chaos.qbl"
 
+/*----------------------------------------------------------------------------//
+    EYES
+//----------------------------------------------------------------------------*/
+
+bool in_eye_extents(quibble_point_2D pt,
+                    bool left_eye,
+                    float eye_size,
+                    float eye_separation){
+    
+    // move to center and do transformations for eye shape
+    pt.x - eye_separation*0.5;
+    pt.y *= 2 + pt.x;
+
+    // right eye
+    float radius = sqrt((pt.x-eye_separation*0.5)*(pt.x-eye_separation*0.5)
+                         +pt.y*pt.y);
+
+    if (radius < 2*eye_size){
+        return true;
+    }
+
+    pt.x *= -1;
+
+    radius = sqrt((pt.x-eye_separation*0.5)*(pt.x-eye_separation*0.5)
+                   +pt.y*pt.y);
+
+
+    // left eye
+/*
+    float radius = 0;
+    if (left_eye){
+        radius = sqrt((pt.x-eye_separation*0.5)*(pt.x-eye_separation*0.5)
+                       +pt.y*pt.y);
+    } else {
+        radius = sqrt((pt.x+eye_separation*0.5)*(pt.x+eye_separation*0.5)
+                       +pt.y*pt.y);
+    }
+*/
+
+    if (radius < 2*eye_size){
+        return true;
+    } else {
+        return false;
+    }
+}
+
 __verse reflection(quibble_point_2D pt |
                    float eye_size = 0.25; int num_ignore = 20;
                    float openness = 1; float separation = 0.25;){
@@ -301,17 +347,70 @@ __verse eyebrow(quibble_point_2D pt, quibble_pcolor_rgba8888 clr,
 
 }
 
-__poem eye(quibble_pixels_prgba8888 qpix,
-           quibble_simple_camera qcam,
-           float time){
+/*----------------------------------------------------------------------------//
+    FACE
+//----------------------------------------------------------------------------*/
 
+quibble_pcolor_rgba8888 base_face_color(){
+    return qb_pcolor_rgba8888(0.95, 0.75, 0.85, 1, 0.3);
+}
+quibble_pcolor_rgba8888 face_color(quibble_point_2D pt,
+                                   float eye_size,
+                                   float eye_separation){
+
+    
+    // left eye
+    if (in_eye_extents(pt, true, eye_size, eye_separation) || 
+        in_eye_extents(pt, false, eye_size, eye_separation)){
+        return qb_pcolor_rgba8888(1,1,1, 1, 0.3);
+    }
+    return base_face_color();
+}
+
+__verse head(quibble_point_2D pt | int num_ignore = 20;
+             float eye_size = 0.25; float eye_separation = 0.5;){
+
+    pt.x *= 0.65 - 0.1*pt.y;
+    if (pt.y < 0){
+        pt.y *= 0.7;
+    } else{
+        pt.x = pt.x*(5 - pt.y*pt.y) / 5;
+        pt.y *= 0.8;
+    }
+
+    if (_i > num_ignore){
+        histogram_output_prgba8888(pt, face_color(pt, eye_size, eye_separation),
+                                   qcam, qpix);
+    }
+}
+
+__poem girl(quibble_pixels_prgba8888 qpix,
+            quibble_simple_camera qcam,
+            float time){
+
+    quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(1,0,1,1,0.1);
+
+    /*------------------------------------------------------------------------//
+        FACE
+    //------------------------------------------------------------------------*/
+
+    // variables for defining face color and eye bg
     float eye_size = 0.1;
     float eye_separation = 0.5;
-    quibble_pcolor_rgba8888 qcolor = qb_pcolor_rgba8888(1,0,1,1,0.1);
+
+    @SCALL circle_chaos(1000, qcam, qcolor | radius = 1;){
+        @VCALL head(_pt |
+                    float eye_size = eye_size;
+                    float eye_separation = eye_separation;);
+    }
+
+    /*------------------------------------------------------------------------//
+        EYES
+    //------------------------------------------------------------------------*/
     quibble_pcolor_rgba8888 eyelash_color = qb_pcolor_rgba8888(0,0,0,1,0.8);
 
-    quibble_pcolor_rgba8888 eye_shadow_color =
-        qb_pcolor_rgba8888(1,1,1,1,0.7);
+    quibble_pcolor_rgba8888 eye_shadow_color = base_face_color();
+    eye_shadow_color.priority = qb_color_clamp(0.7, 0, 1);
     //quibble_pcolor_rgba8888 eye_shadow_color =
     //    qb_pcolor_rgba8888(1,0.75,1,1,0.7);
     //quibble_pcolor_rgba8888 eye_shadow_color =
