@@ -489,6 +489,38 @@ __verse head(quibble_point_2D pt | int num_ignore = 20;
     }
 }
 
+__verse lips(quibble_point_2D pt, quibble_pcolor_rgba8888 clr |
+             int num_ignore = 20; float head_size = 0.65;){
+
+    // shaping lip
+
+
+    pt.y += 0.05;
+    pt.y *= 1 - (pt.x*pt.x);
+
+    quibble_point_2D upper_lip_pt = pt;
+    quibble_point_2D lower_lip_pt = pt;
+    upper_lip_pt.y *= 0.5 + fabs(upper_lip_pt.x);
+    upper_lip_pt.y += 0.05*upper_lip_pt.x*upper_lip_pt.x;
+    upper_lip_pt.y *= -1;
+
+    lower_lip_pt.y -= 0.05*upper_lip_pt.x*upper_lip_pt.x;
+
+    upper_lip_pt.y += head_size*2.5;
+    upper_lip_pt.x *= head_size*0.25;
+    upper_lip_pt.y *= head_size*0.5;
+
+    lower_lip_pt.y += head_size*2.5;
+    lower_lip_pt.x *= head_size*0.25;
+    lower_lip_pt.y *= head_size*0.5;
+
+    if (_i > num_ignore){
+        histogram_output_prgba8888(upper_lip_pt, clr, qcam, qpix);
+        histogram_output_prgba8888(lower_lip_pt, clr, qcam, qpix);
+    }
+    
+}
+
 __poem girl(quibble_pixels_prgba8888 qpix,
             quibble_simple_camera qcam,
             float time){
@@ -524,6 +556,8 @@ __poem girl(quibble_pixels_prgba8888 qpix,
     quibble_pcolor_rgba8888 eyebrow_color = 
         qb_pcolor_rgba8888(0.5, 0.25, 0.15, 1, 0.8);
 
+    quibble_pcolor_rgba8888 lip_color = 
+        qb_pcolor_rgba8888(1, 0.25, 0.85, 1, 0.8);
 
     float openness = 1;
     if (time < 0.17){
@@ -556,6 +590,7 @@ __poem girl(quibble_pixels_prgba8888 qpix,
         @VCALL eyebrow(_pt, eyebrow_color, time |
                        float iris_size = iris_size;
                        float separation = eye_separation;);
+        @VCALL lips(_pt, lip_color);
     }
 
     @SCALL rectangle_chaos(2000, qcam, qcolor){
