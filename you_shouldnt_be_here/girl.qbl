@@ -181,25 +181,13 @@ __verse eyeball(quibble_point_2D pt, float time |
         histogram_output_prgba8888(left_eye_pt, left_eye_color, qcam, qpix);
     }
 
-
-/*
-    pt.x += separation*0.5;
-
-    if (_i > num_ignore){
-        histogram_output_prgba8888(iris_jitter(pt, time, iris_size),
-                                   eye_color, qcam, qpix);
-        pt.x *= -1;
-        histogram_output_prgba8888(iris_jitter(pt, time, iris_size),
-                                   eye_color, qcam, qpix);
-    }
-*/
 }
 
 // Much of this verse relies on the rectangle being centered about the origin
 //     from -1 -> 1
 __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
                 int num_ignore = 20; float openness = 1; int num_lashes = 5;
-                float iris_size = 0.5; float separation = 0.5;){
+                float eye_size = 0.2; float separation = 0.5;){
 
     quibble_point_2D cat_eye_pt = pt;
 
@@ -226,26 +214,13 @@ __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
         // subtracting 0.5 from modulo operator so the range is from -0.5 -> 0.5
         m -= 0.5;
 
-        // 10 is arbitrary
+        // 10 is arbitrary; forces lashes to be up
         pt.y *= 1 + s*10*openness*m*m;
 
-        // eye shaping
+        // eye shaping, bounding to points at edges
         pt.y += s*0.05;
         pt.y *= 1-pow((float)((pt.x-0.5)*lash_length)-1.0f,2.0f);
         pt.y -= s*0.05;
-        //pt.y *= 0.1 + 0.2*pt.x;
-
-        /*
-        if (pt.x >  (num_lashes - 1)){
-            float new_x = pt.x - num_lashes + 1;
-            pt.y *= (1 + new_x);
-            pt.y += s*0.05*new_x * new_x*new_x*new_x*openness;
-            //pt.y *= 1 - new_x;
-        }
-        */
-
-        // shifting lashes a bit to the right as the go up for effect
-        pt.x -= s*3*(pt.y+s*0.05)*(pt.y+s*0.05)*(pt.y+s*0.05);
 
         // returning to original position
         pt.x -= 0.5;
@@ -254,34 +229,56 @@ __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
         pt.y += s*0.05;
     }
 
-    // eye shaping
-    //pt.y*=(1-pt.x*pt.x);
-    //pt.y *= (0.5-pt.x*pt.x);
+    // if lashes are negative, they go down
+    pt.y *= s;
 
-    pt.y -= 0.5*openness;
-    pt.x += 0.25;
+    // First, warp along top fo circle
+    float radius = 1;
 
-    float r = sqrt(pt.x*pt.x + pt.y*pt.y);
-    //float theta = atan2(pt.y,pt.x);
+    // theta is defined based on x (-1 -> 1)
+    float theta = acos(pt.x/radius);
 
-    pt.y += openness * 0.2*r;
+    // partial rotation as if about origin for each x location
+    pt.x -= pt.y*cos(theta);
 
-    pt.x *= iris_size*2;
-    pt.y *= iris_size*2;
+    // setting y to rotation matrix, not relative.
+    // This creates a rotation about x without changing y density
+    pt.y = s*pt.y*sin(theta);
 
-    pt.x += separation*0.5;
+    // redefining theta here will ensure the push up to the upper semi-circle
+    // ends in points instead of being flat.
+    // we deal with the different densities elsewhere, so this is commented
+    //theta = acos(pt.x/radius);
 
-/*
-    float curve_pt = iris_size + 0.25;
-    if (pt.x > curve_pt){
-        pt.y += 0.5*(pt.x-curve_pt)*r*r;
-    }
-*/
+    // warping to top half of circle
+    pt.y -= openness*radius*sin(theta);
+
+    // shaping to match eye
+
+    quibble_point_2D right_eyelash_pt = pt;
+    quibble_point_2D left_eyelash_pt = pt;
+
+    right_eyelash_pt.y *= 1 + 0.2*right_eyelash_pt.x;
+    right_eyelash_pt.y -= 0.2*right_eyelash_pt.x;
+    right_eyelash_pt.y *= 0.75;
+
+    left_eyelash_pt.y = right_eyelash_pt.y;
+    left_eyelash_pt.x *= -1;
+
+    // resizing and spacing
+    right_eyelash_pt.x *= eye_size;
+    right_eyelash_pt.y *= eye_size;
+
+    right_eyelash_pt.x += separation*0.5;
+
+    left_eyelash_pt.x *= eye_size;
+    left_eyelash_pt.y *= eye_size;
+
+    left_eyelash_pt.x -= separation*0.5;
 
     if (_i > num_ignore){
-        histogram_output_prgba8888(pt, eyelash_color, qcam, qpix);
-        pt.x *= -1;
-        histogram_output_prgba8888(pt, eyelash_color, qcam, qpix);
+        histogram_output_prgba8888(right_eyelash_pt, eyelash_color, qcam, qpix);
+        histogram_output_prgba8888(left_eyelash_pt, eyelash_color, qcam, qpix);
     }
 }
 
@@ -421,27 +418,27 @@ __poem girl(quibble_pixels_prgba8888 qpix,
     quibble_pcolor_rgba8888 eyebrow_color = 
         qb_pcolor_rgba8888(0.5, 0.25, 0.15, 1, 0.8);
 
-    float openness = 2;
-    if (time < 0.15){
-        openness = 2-4*time/0.15;
-    } else if (time >= 0.15 && time < 0.3) {
-        openness = -2+4*(time-0.15)/0.15;
-    } else if (time >= 0.45 && time < 0.6){
-        openness = 2-4*(time-0.45)/0.15;
-    } else if (time >= 0.6 && time < 0.75){
-        openness = -2+4*(time-0.6)/0.15;
-    }
 
+    float openness = 1;
+    if (time < 0.17){
+        openness = 1-2*time/0.17;
+    } else if (time >= 0.17 && time < 0.3) {
+        openness = -1+2*(time-0.15)/0.15;
+    } else if (time >= 0.45 && time < 0.6){
+        openness = 1-2*(time-0.45)/0.15;
+    } else if (time >= 0.6 && time < 0.75){
+        openness = -1+2*(time-0.6)/0.15;
+    }
 
     @SCALL circle_chaos(2000, qcam, qcolor | radius = 1;){
         @VCALL eyeball(_pt, time |
                        float separation = eye_separation;);
         @VCALL reflection(_pt | float iris_size = iris_size;
                                 float separation = eye_separation;);
-        @VCALL eye_shadow(_pt, eye_shadow_color |
-                          float openness = openness;
-                          float iris_size = iris_size;
-                          float separation = eye_separation;);
+        //VCALL eye_shadow(_pt, eye_shadow_color |
+        //                  float openness = openness;
+        //                  float iris_size = iris_size;
+        //                  float separation = eye_separation;);
     }
 
     @SCALL rectangle_chaos(100, qcam, qcolor | float scale_y = 0.05;){
@@ -449,9 +446,9 @@ __poem girl(quibble_pixels_prgba8888 qpix,
                        float openness = openness;
                        float iris_size = iris_size;
                        float separation = eye_separation;);
-        @VCALL eyebrow(_pt, eyebrow_color, time |
-                       float iris_size = iris_size;
-                       float separation = eye_separation;);
+        //VCALL eyebrow(_pt, eyebrow_color, time |
+        //               float iris_size = iris_size;
+        //               float separation = eye_separation;);
     }
 
 
