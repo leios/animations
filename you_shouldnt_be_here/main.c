@@ -51,7 +51,7 @@ int main(int argc, char **argv){
     int height = 1080;
     quibble_pixels qpix = qb_create_pixel_array(qp, width, height, PRGBA8888);
 
-    float world_size_x = 4;
+    float world_size_x = 6;
     float ppu = width / world_size_x;
     float world_size_y = height / ppu;
 
@@ -79,7 +79,7 @@ int main(int argc, char **argv){
                 "quibble_pixels_prgba8888 qpix", qpix,
                 "quibble_simple_camera qcam", &qcam);
 */
-    qb_set_args(&qp, "eye", 2,
+    qb_set_args(&qp, "girl", 2,
                 "quibble_pixels_prgba8888 qpix", qpix,
                 "quibble_simple_camera qcam", &qcam);
 
@@ -87,10 +87,11 @@ int main(int argc, char **argv){
     while (curr_time < final_time){
         char filename[15] = {0};
         //qb_set_arg(&qp, "supernova", "float time", &curr_time);
+        qb_set_arg(&qp, "girl", "float time", &curr_time);
 
         qb_run(qp, "bg_layer", width*height, 256);
         //qb_run(qp, "supernova", 1024, 256);
-        qb_run(qp, "eye", 1024, 256);
+        qb_run(qp, "girl", 1024, 256);
 
         qb_pixels_device_to_host(qpix);
 
