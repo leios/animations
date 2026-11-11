@@ -132,6 +132,14 @@ quibble_pcolor_rgba8888 color_iris(quibble_point_2D pt,
 
 }
 
+quibble_point_2D eyeball_shaping(quibble_point_2D pt, float eye_size){
+    pt.y *= 1 + 0.2*pt.x;
+    pt.y -= 0.2*pt.x;
+    pt.y *= 0.75;
+
+    return pt;
+}
+
 __verse eyeball(quibble_point_2D pt, float time | 
                 float color_change = 0.1;
                 float eye_size = 0.2;
@@ -141,18 +149,10 @@ __verse eyeball(quibble_point_2D pt, float time |
 
     float iris_size = 0.5;
 
-    quibble_point_2D right_eye_pt = pt;
-    quibble_point_2D left_eye_pt = pt;
+    quibble_point_2D right_eye_pt = eyeball_shaping(pt, eye_size);
 
-    // add shaping here
-
-    right_eye_pt.y *= 1 + 0.2*right_eye_pt.x;
-    right_eye_pt.y -= 0.2*right_eye_pt.x;
-    right_eye_pt.y *= 0.75;
-
-    left_eye_pt.y = right_eye_pt.y;
+    quibble_point_2D left_eye_pt = right_eye_pt;
     left_eye_pt.x *= -1;
-
 
     // separating left and right eye colors because the shape is inverted
     quibble_pcolor_rgba8888 right_eye_color = color_iris(right_eye_pt,
@@ -255,14 +255,9 @@ __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
 
     // shaping to match eye
 
-    quibble_point_2D right_eyelash_pt = pt;
-    quibble_point_2D left_eyelash_pt = pt;
+    quibble_point_2D right_eyelash_pt = eyeball_shaping(pt, eye_size);
+    quibble_point_2D left_eyelash_pt = right_eyelash_pt;
 
-    right_eyelash_pt.y *= 1 + 0.2*right_eyelash_pt.x;
-    right_eyelash_pt.y -= 0.2*right_eyelash_pt.x;
-    right_eyelash_pt.y *= 0.75;
-
-    left_eyelash_pt.y = right_eyelash_pt.y;
     left_eyelash_pt.x *= -1;
 
     // resizing and spacing
@@ -293,14 +288,8 @@ __verse eye_shadow(quibble_point_2D pt, quibble_pcolor_rgba8888 clr |
     if (pt.y < y_pt){
 
         // add shaping here
-        quibble_point_2D right_eyeshadow_pt = pt;
-        quibble_point_2D left_eyeshadow_pt = pt;
-
-        right_eyeshadow_pt.y *= 1 + 0.2*right_eyeshadow_pt.x;
-        right_eyeshadow_pt.y -= 0.2*right_eyeshadow_pt.x;
-        right_eyeshadow_pt.y *= 0.75;
-
-        left_eyeshadow_pt.y = right_eyeshadow_pt.y;
+        quibble_point_2D right_eyeshadow_pt = eyeball_shaping(pt, eye_size);
+        quibble_point_2D left_eyeshadow_pt = right_eyeshadow_pt;
         left_eyeshadow_pt.x *= -1;
 
         // resizing and spacing
@@ -456,9 +445,9 @@ __poem girl(quibble_pixels_prgba8888 qpix,
                        float openness = openness;
                        float iris_size = iris_size;
                        float separation = eye_separation;);
-        //VCALL eyebrow(_pt, eyebrow_color, time |
-        //               float iris_size = iris_size;
-        //               float separation = eye_separation;);
+        @VCALL eyebrow(_pt, eyebrow_color, time |
+                       float iris_size = iris_size;
+                       float separation = eye_separation;);
     }
 
 
