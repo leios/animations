@@ -283,33 +283,43 @@ __verse eyelash(quibble_point_2D pt, quibble_pcolor_rgba8888 eyelash_color |
 }
 
 __verse eye_shadow(quibble_point_2D pt, quibble_pcolor_rgba8888 clr |
-                   float openness = 1; float iris_size = 0.5;
+                   float openness = 1; float eye_size = 0.2;
                    int num_ignore = 20; float separation = 0.5;){
 
-    // for now, flipping all points up, but might also use this to block out eye for the under lashes too
-    pt.y = -fabs(pt.y);
+    // we will warp the circle as the eye and then shade if we are above y_pt
+    float theta = acos(pt.x/radius);
+    float y_pt = -openness*radius*sin(theta);
 
-    pt.y /= (1+0.2*openness);
+    if (pt.y < y_pt){
 
-    // creating an upper semi-circle under the lashes
-    pt.y -= 0.5*openness;
-    pt.x += 0.25;
+        // add shaping here
+        quibble_point_2D right_eyeshadow_pt = pt;
+        quibble_point_2D left_eyeshadow_pt = pt;
 
-    float r = sqrt(pt.x*pt.x + pt.y*pt.y);
-    //float theta = atan2(pt.y,pt.x);
+        right_eyeshadow_pt.y *= 1 + 0.2*right_eyeshadow_pt.x;
+        right_eyeshadow_pt.y -= 0.2*right_eyeshadow_pt.x;
+        right_eyeshadow_pt.y *= 0.75;
 
-    pt.y += openness * 0.2*r;
+        left_eyeshadow_pt.y = right_eyeshadow_pt.y;
+        left_eyeshadow_pt.x *= -1;
 
-    pt.y *= iris_size*2;
-    pt.x *= iris_size*2;
+        // resizing and spacing
+        right_eyeshadow_pt.x *= eye_size;
+        right_eyeshadow_pt.y *= eye_size;
 
-    pt.x += 0.5*separation;
+        right_eyeshadow_pt.x += separation*0.5;
 
-    if (_i > num_ignore){
-        histogram_output_prgba8888(pt, clr, qcam, qpix);
-        pt.x *= -1;
-        histogram_output_prgba8888(pt, clr, qcam, qpix);
+        left_eyeshadow_pt.x *= eye_size;
+        left_eyeshadow_pt.y *= eye_size;
+
+        left_eyeshadow_pt.x -= separation*0.5;
+
+        if (_i > num_ignore){
+            histogram_output_prgba8888(right_eyeshadow_pt, clr, qcam, qpix);
+            histogram_output_prgba8888(left_eyeshadow_pt, clr, qcam, qpix);
+        }
     }
+
 }
 
 // This assumes the eyebrow is from 0 -> 2 in x
@@ -408,10 +418,10 @@ __poem girl(quibble_pixels_prgba8888 qpix,
     //------------------------------------------------------------------------*/
     quibble_pcolor_rgba8888 eyelash_color = qb_pcolor_rgba8888(0,0,0,1,0.8);
 
-    quibble_pcolor_rgba8888 eye_shadow_color = face_color();
-    eye_shadow_color.priority = qb_color_clamp(0.7, 0, 1);
-    //quibble_pcolor_rgba8888 eye_shadow_color =
-    //    qb_pcolor_rgba8888(1,0.75,1,1,0.7);
+    //quibble_pcolor_rgba8888 eye_shadow_color = face_color();
+    //eye_shadow_color.priority = qb_color_clamp(0.7, 0, 1);
+    quibble_pcolor_rgba8888 eye_shadow_color =
+        qb_pcolor_rgba8888(1,0.75,1,1,0.7);
     //quibble_pcolor_rgba8888 eye_shadow_color =
         //qb_pcolor_rgba8888(0.9,0.75,1,1,0.7);
 
@@ -435,10 +445,10 @@ __poem girl(quibble_pixels_prgba8888 qpix,
                        float separation = eye_separation;);
         @VCALL reflection(_pt | float iris_size = iris_size;
                                 float separation = eye_separation;);
-        //VCALL eye_shadow(_pt, eye_shadow_color |
-        //                  float openness = openness;
-        //                  float iris_size = iris_size;
-        //                  float separation = eye_separation;);
+        @VCALL eye_shadow(_pt, eye_shadow_color |
+                          float openness = openness;
+                          float iris_size = iris_size;
+                          float separation = eye_separation;);
     }
 
     @SCALL rectangle_chaos(100, qcam, qcolor | float scale_y = 0.05;){
