@@ -481,7 +481,7 @@ __verse head(quibble_point_2D pt | int num_ignore = 20;
         pt.y *= head_size*1.1;
     } else{
         pt.x = pt.x*(5 - pt.y*pt.y) / 5;
-        pt.y *= head_size*1.25;
+        pt.y *= head_size*1.1;
     }
 
     if (_i > num_ignore){
@@ -519,6 +519,38 @@ __verse lips(quibble_point_2D pt, quibble_pcolor_rgba8888 clr |
         histogram_output_prgba8888(lower_lip_pt, clr, qcam, qpix);
     }
     
+}
+
+__verse nose(quibble_point_2D pt |
+             int num_ignore = 20; float head_size = 0.65;){
+    quibble_pcolor_rgba8888 nose_color = face_color();
+    nose_color.priority = qb_color_clamp(0.7, 0, 1);
+
+    float r = sqrt(pt.x*pt.x + pt.y*pt.y);
+
+    float ratio = (-pt.x*(1-r*r) - pt.y*(1-r));
+
+    float red = qb_as_float(nose_color.red);
+    float green = qb_as_float(nose_color.green);
+    float blue = qb_as_float(nose_color.blue);
+
+    nose_color.red = qb_color_clamp(red + (1-red)*ratio, 0, 1);
+    nose_color.green = qb_color_clamp(green + (1-green)*ratio, 0, 1);
+    nose_color.blue = qb_color_clamp(blue + (1-blue)*ratio, 0, 1);
+
+    pt.x *= (pt.y+1.1);
+    pt.y*=2;
+    pt.x += 0.1*sin(pt.y*M_PI*0.5);
+
+    pt.y += 6.125*head_size;
+    pt.x *= head_size * 0.1;
+    pt.y *= head_size * 0.1;
+
+
+    if (_i > num_ignore){
+        histogram_output_prgba8888(pt, nose_color, qcam, qpix);
+    }
+
 }
 
 __poem girl(quibble_pixels_prgba8888 qpix,
@@ -580,6 +612,7 @@ __poem girl(quibble_pixels_prgba8888 qpix,
                           float iris_size = iris_size;
                           float separation = eye_separation;);
         @VCALL bangs(_pt, eyebrow_color, time);
+        @VCALL nose(_pt);
     }
 
     @SCALL rectangle_chaos(100, qcam, qcolor | float scale_y = 0.05;){
