@@ -468,13 +468,35 @@ __verse eyebrow(quibble_point_2D pt, quibble_pcolor_rgba8888 clr,
     FACE
 //----------------------------------------------------------------------------*/
 
-quibble_pcolor_rgba8888 face_color(){
-    return qb_pcolor_rgba8888(0.95, 0.75, 0.85, 1, 0.4);
+quibble_pcolor_rgba8888 face_color_with_lighting(quibble_point_2D pt,
+                                                 quibble_point_2D light_loc,
+                                                 float intensity){
+
+    // base color
+    float red = 0.95;
+    float green = 0.75;
+    float blue = 0.85;
+
+    float radius = sqrt((pt.x-light_loc.x)*(pt.x-light_loc.x)+
+                        (pt.y-light_loc.y)*(pt.y-light_loc.y));
+
+    float ratio = (1-radius);
+
+    red = red + (1-red)*ratio;
+    green = green + (1-green)*ratio;
+    blue = blue + (1-blue)*ratio;
+
+    return qb_pcolor_rgba8888(red, green, blue, 1, 0.4);
+}
+quibble_pcolor_rgba8888 face_color(quibble_point_2D pt){
+    return face_color_with_lighting(pt, qb_point_2D(-0.5, -0.5), 0.5);
 }
 
 __verse head(quibble_point_2D pt | int num_ignore = 20;
              float iris_size = 0.25; float eye_separation = 0.5;
              float head_size = 0.65;){
+
+    quibble_pcolor_rgba8888 f_color = face_color(pt);
 
     pt.x *= head_size - 0.1*pt.y;
     if (pt.y < 0){
@@ -485,7 +507,7 @@ __verse head(quibble_point_2D pt | int num_ignore = 20;
     }
 
     if (_i > num_ignore){
-        histogram_output_prgba8888(pt, face_color(), qcam, qpix);
+        histogram_output_prgba8888(pt, f_color, qcam, qpix);
     }
 }
 
@@ -523,8 +545,31 @@ __verse lips(quibble_point_2D pt, quibble_pcolor_rgba8888 clr |
 
 __verse nose(quibble_point_2D pt |
              int num_ignore = 20; float head_size = 0.65;){
-    quibble_pcolor_rgba8888 nose_color = face_color();
-    nose_color.priority = qb_color_clamp(0.7, 0, 1);
+    // getting nose in position to get original face color
+    // must be more efficient way to do this...
+
+    pt.x *= (pt.y+1.1);
+    pt.y *= 2;
+    pt.x += 0.1*sin(pt.y*M_PI*0.5);
+
+    pt.y += 6.125*head_size;
+    pt.x *= head_size * 0.1;
+    pt.y *= head_size * 0.1;
+
+    quibble_pcolor_rgba8888 nose_color = face_color(pt);
+
+    // back into position for overall shading.
+    pt.x /= head_size*0.1;
+    pt.y /= head_size*0.1;
+    pt.y -= 6.125*head_size;
+
+    pt.x -= 0.1*sin(pt.y*M_PI*0.5);
+    pt.y /= 2;
+    pt.x /= (pt.y+1.1);
+
+
+    // now coloring nose...
+    nose_color.priority = qb_color_clamp(0.45, 0, 1);
 
     float r = sqrt(pt.x*pt.x + pt.y*pt.y);
 
@@ -539,7 +584,7 @@ __verse nose(quibble_point_2D pt |
     nose_color.blue = qb_color_clamp(blue + (1-blue)*ratio, 0, 1);
 
     pt.x *= (pt.y+1.1);
-    pt.y*=2;
+    pt.y *= 2;
     pt.x += 0.1*sin(pt.y*M_PI*0.5);
 
     pt.y += 6.125*head_size;
